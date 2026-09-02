@@ -56,11 +56,18 @@ export async function leaveQueue(): Promise<void> {
   }
 }
 
+export type LiveCampusStats = {
+  activeRooms: number;
+  onlineFreshies: number;
+  matchesToday: number;
+};
+
 export type QueueState = {
   queued: boolean;
   count: number;
   roomId: string | null;
   oldestJoinedAt: string | null;
+  stats: LiveCampusStats;
 };
 
 export async function getQueueState(): Promise<QueueState> {
@@ -68,7 +75,17 @@ export async function getQueueState(): Promise<QueueState> {
 
   await supabase.rpc("purge_stale_queue");
 
-  const [countResult, queuedResult, oldestResult] = await Promise.all([
+  const nowIso = new Date().toISOString();
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const [
+    countResult,
+    queuedResult,
+    oldestResult,
+    activeRoomsResult,
+    todayMatchesResult,
+  ] = await Promise.all([
     supabase.from("match_queue").select("*", { count: "exact", head: true }),
     supabase
       .from("match_queue")
@@ -81,6 +98,14 @@ export async function getQueueState(): Promise<QueueState> {
       .order("joined_at", { ascending: true })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("rooms")
+      .select("*", { count: "exact", head: true })
+      .gt("expires_at", nowIso),
+    supabase
+      .from("rooms")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", startOfDay.toISOString()),
   ]);
 
   const queued = Boolean(queuedResult.data);
@@ -95,12 +120,29 @@ export async function getQueueState(): Promise<QueueState> {
 
   const roomId = await findLatestVisibleRoom(supabase, userId);
 
+  const rawQueued = countResult.count ?? 0;
+  const activeRooms = activeRoomsResult.count ?? 0;
+  const matchesToday = todayMatchesResult.count ?? 0;
+
+  // Real-time active freshies only:
+  // Active queue members + members in active rooms (4 per room) + current lobby user (if not already queued/roomed)
+  const activeRoomMembers = activeRooms * 4;
+  const isCurrentAccounted = queued || Boolean(roomId);
+  const onlineFreshies = Math.max(
+    1,
+    rawQueued + activeRoomMembers + (isCurrentAccounted ? 0 : 1),
+  );
+
   return {
     queued,
-    count: countResult.count ?? 0,
+    count: rawQueued,
     roomId,
-    // True longest wait: oldest original join time in the queue.
     oldestJoinedAt: (oldestResult.data?.joined_at as string | null) ?? null,
+    stats: {
+      activeRooms,
+      onlineFreshies,
+      matchesToday,
+    },
   };
 }
 

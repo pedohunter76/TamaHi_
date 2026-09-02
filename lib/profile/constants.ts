@@ -1,6 +1,8 @@
 export type Institute = {
   shortName: string;
   fullName: string;
+  buildingLocation?: string;
+  tagline?: string;
   courses: readonly string[];
 };
 
@@ -8,6 +10,8 @@ export const INSTITUTES: readonly Institute[] = [
   {
     shortName: "IABF",
     fullName: "Institute of Accounts, Business, and Finance (IABF)",
+    buildingLocation: "Nicanor Reyes Hall (NRH) 2F/3F",
+    tagline: "Tamaraw Business & Finance Leaders",
     courses: [
       "BS Accountancy",
       "BS Business Administration",
@@ -22,6 +26,8 @@ export const INSTITUTES: readonly Institute[] = [
   {
     shortName: "IARFA",
     fullName: "Institute of Architecture and Fine Arts (IARFA)",
+    buildingLocation: "Law Building & Art Studios",
+    tagline: "Creatives, Architects & Designers",
     courses: [
       "BS Architecture",
       "Building Construction",
@@ -34,6 +40,8 @@ export const INSTITUTES: readonly Institute[] = [
   {
     shortName: "IAS",
     fullName: "Institute of Arts and Sciences (IAS)",
+    buildingLocation: "Arts Building & Science Wings",
+    tagline: "Thinkers, Communicators & Scientists",
     courses: [
       "BS Applied Mathematics",
       "Data Science",
@@ -60,6 +68,8 @@ export const INSTITUTES: readonly Institute[] = [
   {
     shortName: "IE",
     fullName: "Institute of Education (IE)",
+    buildingLocation: "Education Building (ED) & Gym",
+    tagline: "Educators, Mentors & Sports Leaders",
     courses: [
       "Bachelor of Elementary Education",
       "Bachelor of Secondary Education — English",
@@ -74,6 +84,8 @@ export const INSTITUTES: readonly Institute[] = [
   {
     shortName: "IHSN",
     fullName: "Institute of Health Sciences and Nursing (IHSN)",
+    buildingLocation: "Nursing Building & Hospital Labs",
+    tagline: "Healthcare & Clinical Care Professionals",
     courses: [
       "BS Nursing",
       "BS Medical Technology",
@@ -84,6 +96,8 @@ export const INSTITUTES: readonly Institute[] = [
   {
     shortName: "ITHM",
     fullName: "Institute of Tourism and Hotel Management (ITHM)",
+    buildingLocation: "Education Building Demo Kitchens",
+    tagline: "Hospitality, Tourism & Culinary Arts",
     courses: [
       "BS Hospitality Management",
       "Cruise Line Management",

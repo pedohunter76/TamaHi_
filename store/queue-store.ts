@@ -27,6 +27,11 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
   count: 0,
   roomId: null,
   oldestJoinedAt: null,
+  stats: {
+    activeRooms: 0,
+    onlineFreshies: 1,
+    matchesToday: 0,
+  },
   error: null,
   justMatched: false,
 
@@ -44,6 +49,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
           roomId: state.roomId,
           count: state.count,
           oldestJoinedAt: null,
+          stats: state.stats,
           queued: false,
           justMatched: true,
         });
@@ -53,6 +59,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
           queued: true,
           count: state.count,
           oldestJoinedAt: state.oldestJoinedAt,
+          stats: state.stats,
           justMatched: false,
         });
       }
@@ -88,6 +95,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
         set({
           status: "matched",
           roomId: state.roomId,
+          stats: state.stats,
           queued: false,
           justMatched: true,
         });
@@ -97,6 +105,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
           queued: true,
           count: state.count,
           oldestJoinedAt: state.oldestJoinedAt,
+          stats: state.stats,
           justMatched: false,
         });
       } else {
@@ -105,6 +114,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
           queued: false,
           count: state.count,
           oldestJoinedAt: null,
+          stats: state.stats,
           justMatched: false,
         });
       }

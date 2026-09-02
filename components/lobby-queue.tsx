@@ -1,61 +1,48 @@
 "use client";
 
-import { Hourglass, Users } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpen,
+  Check,
+  GraduationCap,
+  MessageSquare,
+  Play,
+  Sparkles,
+  Users,
+  Zap,
+} from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { BATCH_SIZE } from "@/lib/match/constants";
 import { leaveRoom } from "@/lib/match/actions";
+import { BATCH_SIZE } from "@/lib/match/constants";
 import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 import { useQueueStore } from "@/store/queue-store";
 
-function SeatDots({ filled }: { filled: number }) {
-  return (
-    <div className="mt-6 flex items-center justify-center -space-x-3">
-      {Array.from({ length: BATCH_SIZE }, (_, index) => (
-        <span key={index}>
-          {index < filled ? (
-            <span className="flex size-11 items-center justify-center rounded-full border-2 border-background bg-primary/15 text-xs font-bold text-primary shadow-sm">
-              <Users className="size-4" />
-            </span>
-          ) : index === filled ? (
-            <span className="flex size-11 animate-pulse items-center justify-center rounded-full border-2 border-dashed border-primary/50 bg-transparent text-primary/70">
-              <Hourglass className="size-4" />
-            </span>
-          ) : (
-            <span className="flex size-11 items-center justify-center rounded-full border-2 border-dashed border-border/70 bg-transparent text-muted-foreground/60">
-              <Hourglass className="size-4" />
-            </span>
-          )}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function formatWait(joinedAtIso: string): string {
-  const minutes = Math.max(
-    0,
-    Math.floor((Date.now() - new Date(joinedAtIso).getTime()) / 60_000),
-  );
-
-  return minutes >= 60
-    ? `${Math.floor(minutes / 60)}h ${minutes % 60}m`
-    : `${minutes}m`;
-}
+const ROTATING_TIPS = [
+  "💡 Did you know? The Arts Building corridor is the fastest dry shortcut to Gate 4 during heavy rains!",
+  "💡 Freshie Tip: Free charging outlets are on every wooden desk at the FEU Library 3rd floor.",
+  "💡 Vibe Match: Groups of 4 are seated based on your vacant spot and study habit compatibility.",
+  "💡 Survival Hack: Gate 2 on R. Papa is the closest exit for rush document printing and bookbinding.",
+  "💡 Campus Spirit: Green Wednesdays are official wash days — wear green with pride!",
+];
 
 export function LobbyQueue() {
   const router = useRouter();
   const status = useQueueStore((state) => state.status);
   const count = useQueueStore((state) => state.count);
   const roomId = useQueueStore((state) => state.roomId);
-  const oldestJoinedAt = useQueueStore((state) => state.oldestJoinedAt);
   const justMatched = useQueueStore((state) => state.justMatched);
   const error = useQueueStore((state) => state.error);
   const join = useQueueStore((state) => state.join);
   const leave = useQueueStore((state) => state.leave);
   const refresh = useQueueStore((state) => state.refresh);
+  const stats = useQueueStore((state) => state.stats);
+
+  const [tipIndex, setTipIndex] = useState(0);
 
   useEffect(() => {
     const supabase = createClient();
@@ -74,13 +61,22 @@ export function LobbyQueue() {
     void refresh();
     const interval = setInterval(() => {
       void refresh();
-    }, 5000);
+    }, 4000);
 
     return () => {
       clearInterval(interval);
       void supabase.removeChannel(channel);
     };
   }, [refresh]);
+
+  useEffect(() => {
+    if (status === "waiting" || status === "joining") {
+      const tipTimer = setInterval(() => {
+        setTipIndex((prev) => (prev + 1) % ROTATING_TIPS.length);
+      }, 4500);
+      return () => clearInterval(tipTimer);
+    }
+  }, [status]);
 
   useEffect(() => {
     if (status === "matched" && roomId) {
@@ -90,14 +86,14 @@ export function LobbyQueue() {
 
   if (error) {
     return (
-      <div className="glass-card flex flex-col gap-3 rounded-2xl p-8 text-center">
-        <p role="alert" className="text-sm font-medium text-destructive">
+      <div className="glass-card mx-auto flex max-w-md flex-col items-center gap-3 rounded-3xl p-8 text-center shadow-card-sm">
+        <p role="alert" className="text-sm font-semibold text-destructive">
           {error}
         </p>
         <Button
           onClick={() => void refresh()}
           variant="outline"
-          className="mx-auto"
+          className="rounded-xl border-[#006633] font-bold text-[#006633]"
         >
           Reconnect
         </Button>
@@ -105,27 +101,30 @@ export function LobbyQueue() {
     );
   }
 
-  if (status === "joining") {
-    return (
-      <div className="glass-card rounded-2xl p-8 text-center text-sm text-muted-foreground">
-        Finding your people…
-      </div>
-    );
-  }
-
+  // 1. LIVE BATCH ACTIVE SCREEN
   if (status === "matched" && !justMatched && roomId) {
     return (
-      <div className="glass-card flex flex-col items-center gap-4 rounded-2xl p-8 text-center md:p-10">
-        <p className="text-lg font-bold">Your batch is still live.</p>
-        <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-          Your room stays open for the rest of its 24 hours.
-        </p>
-        <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
+      <div className="glass-card mx-auto flex max-w-lg flex-col items-center gap-5 rounded-3xl p-8 text-center shadow-card-md md:p-10 animate-in zoom-in-95">
+        <span className="flex size-18 items-center justify-center rounded-3xl bg-[#006633] text-[#FDB913] shadow-cta">
+          <MessageSquare className="size-9 fill-[#FDB913]" />
+        </span>
+        <div className="space-y-1">
+          <span className="inline-flex items-center gap-1 rounded-full border border-[#006633]/20 bg-[#f0faf5] px-3 py-1 text-xs font-black uppercase tracking-wider text-[#006633]">
+            <Sparkles className="size-3 text-[#FDB913]" />
+            Room is Live!
+          </span>
+          <h2 className="text-2xl font-black text-[#006633] md:text-3xl">Your batch is chatting!</h2>
+          <p className="text-xs leading-relaxed text-muted-foreground max-w-sm mx-auto">
+            Your 4-person room is active right now for its 24-hour cycle. Jump back in to reply to your batchmates.
+          </p>
+        </div>
+        <div className="mt-2 flex w-full flex-col gap-2.5">
           <Button
             onClick={() => router.push(`/chat/${roomId}`)}
-            className="rounded-xl px-6 font-bold"
+            className="h-13 w-full rounded-2xl bg-[#006633] text-sm font-extrabold text-[#FDB913] shadow-cta hover:bg-[#004d26]"
           >
-            Return to your room
+            Return to Room #{roomId.slice(0, 6).toUpperCase()}
+            <ArrowRight className="ml-1.5 size-4" />
           </Button>
           <button
             type="button"
@@ -137,133 +136,268 @@ export function LobbyQueue() {
                 void refresh();
               }
             }}
-            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+            className="text-xs font-semibold text-muted-foreground hover:text-foreground underline-offset-4 hover:underline pt-1"
           >
-            Leave it and find new people
+            Leave room and find new batch
           </button>
         </div>
       </div>
     );
   }
 
-  if (status === "waiting") {
+  // 2. QUEUE RADAR / SCANNING VIEW
+  if (status === "waiting" || status === "joining") {
+    const filledCount = Math.max(1, Math.min(count, BATCH_SIZE));
+    const isReady = filledCount >= BATCH_SIZE;
+
     return (
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-12">
-        <div className="glass-card flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-primary/40 p-8 text-center transition-all duration-300 min-h-[320px] md:col-span-8">
-          <span className="flex size-20 animate-pulse items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Users className="size-9" />
-          </span>
-          <h2 className="text-2xl font-bold tracking-tight">Finding your people…</h2>
-          <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-            Hang tight — we&apos;re seating freshies who vibe like you. The room
-            opens the moment your batch is full.
+      <div className="mx-auto flex w-full max-w-lg flex-col items-center gap-6">
+        {/* Main Queue Radar Card */}
+        <div className="glass-card relative flex w-full flex-col items-center overflow-hidden rounded-3xl p-8 text-center shadow-card-lg md:p-10 animate-in fade-in">
+          {/* Top Banner Tag */}
+          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-[#006633]/20 bg-[#f0faf5] px-3.5 py-1 text-xs font-extrabold text-[#006633]">
+            <Zap className="size-3.5 text-[#FDB913] fill-[#FDB913]" />
+            <span>Vibe Radar Active</span>
+          </div>
+
+          {/* Pulsing indicator */}
+          <div className="relative mb-5 flex size-24 items-center justify-center">
+            {!isReady ? (
+              <>
+                <span className="absolute inset-0 rounded-full border-[3px] border-[#006633]/40 animate-pulse-ring" />
+                <span className="absolute inset-2 rounded-full border-[2px] border-[#FDB913]/50 animate-pulse-ring" style={{ animationDelay: "400ms" }} />
+              </>
+            ) : null}
+            <div
+              className={cn(
+                "relative flex size-20 items-center justify-center rounded-full shadow-cta transition-colors duration-500",
+                isReady ? "bg-[#FDB913] text-[#006633]" : "bg-[#006633] text-[#FDB913]",
+              )}
+            >
+              {isReady ? (
+                <Check className="size-9 stroke-[3]" />
+              ) : (
+                <Play className="size-8 fill-[#FDB913] pl-1" />
+              )}
+            </div>
+          </div>
+
+          {/* Heading */}
+          <h2 className="text-2xl font-black tracking-tight text-[#006633]">
+            {isReady ? "Room Ready! 🎉" : "Finding Freshies..."}
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {isReady
+              ? "Entering your chat room now…"
+              : "Matching you with 3 other FEU freshies based on campus vibes."}
           </p>
+
+          {/* Gradient Progress Bar */}
+          <div className="my-5 h-2.5 w-full overflow-hidden rounded-full bg-[#f3f4f6]">
+            <div
+              className="h-full rounded-full transition-all duration-500 ease-out"
+              style={{
+                width: `${(filledCount / BATCH_SIZE) * 100}%`,
+                background: "linear-gradient(90deg, #006633 40%, #FDB913)",
+              }}
+            />
+          </div>
+
+          {/* 4 Queue Seats */}
+          <div className="flex items-center justify-center gap-3">
+            {Array.from({ length: BATCH_SIZE }, (_, idx) => {
+              const filled = idx < filledCount;
+              return (
+                <div
+                  key={idx}
+                  className={cn(
+                    "flex size-14 items-center justify-center rounded-2xl font-black text-sm transition-all duration-400",
+                    filled
+                      ? "border-2 border-[#FDB913] bg-[#006633] text-white shadow-md scale-100"
+                      : "border-2 border-dashed border-[#d1d5db] bg-[#f3f4f6] text-[#9ca3af] scale-95",
+                  )}
+                >
+                  {filled ? (
+                    <div className="flex flex-col items-center">
+                      <span className="text-xs">🔰</span>
+                      <span className="text-[10px] font-extrabold text-[#FDB913]">Seat {idx + 1}</span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Waiting</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Status Badge */}
+          <div className="mt-5 inline-flex items-center gap-2 rounded-full border-[1.5px] border-[#006633]/15 bg-[#f0faf5] px-4 py-1.5 text-xs font-extrabold text-[#006633]">
+            <span className="size-2 rounded-full bg-[#16a34a] animate-pulse" />
+            {filledCount} of {BATCH_SIZE} freshies joined
+          </div>
+
+          {/* Rotating Tip Banner */}
+          {!isReady ? (
+            <div className="relative mt-5 flex w-full flex-col gap-1 overflow-hidden rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] p-3.5 text-left text-xs text-muted-foreground animate-in fade-in">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#006633]">
+                Tamaraw Quick Fact
+              </span>
+              <p className="text-xs font-medium text-foreground transition-all duration-300">
+                {ROTATING_TIPS[tipIndex]}
+              </p>
+            </div>
+          ) : null}
+
+          {/* Cancel queue button */}
           <button
             type="button"
             onClick={() => void leave()}
-            className="mt-2 text-sm text-muted-foreground underline-offset-4 hover:underline"
+            className="mt-5 text-xs font-semibold text-muted-foreground underline-offset-4 hover:underline"
           >
-            Leave the queue
+            Leave queue
           </button>
         </div>
-
-        <div className="glass-card relative flex min-h-[320px] flex-col overflow-hidden rounded-2xl p-6 md:col-span-4">
-          <span
-            aria-hidden
-            className="pointer-events-none absolute -bottom-10 -right-10 size-44 rounded-full bg-secondary/30 blur-3xl"
-          />
-          <div className="relative flex flex-1 flex-col">
-            <div className="mb-4 flex items-start justify-between">
-              <h2 className="text-lg font-bold">Queue status</h2>
-              <span className="rounded-full bg-secondary/25 px-3 py-1 text-[11px] font-bold uppercase tracking-wider">
-                Live
-              </span>
-            </div>
-            <div className="flex flex-1 flex-col items-center justify-center">
-              <p className="text-6xl font-black tabular-nums text-primary drop-shadow-sm">
-                {count}
-                <span className="text-3xl font-bold text-muted-foreground/70">
-                  {" "}
-                  / {BATCH_SIZE}
-                </span>
-              </p>
-              <p className="mt-2 text-center text-sm font-medium text-muted-foreground">
-                Freshies waiting for a lobby match.
-              </p>
-
-              <div className="mt-4 h-1.5 w-full max-w-[180px] overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-primary transition-all duration-700 ease-out"
-                  style={{ width: `${(Math.min(count, BATCH_SIZE) / BATCH_SIZE) * 100}%` }}
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={BATCH_SIZE}
-                  aria-valuenow={Math.min(count, BATCH_SIZE)}
-                />
-              </div>
-              <p className="mt-2 text-center text-xs text-muted-foreground">
-                {oldestJoinedAt
-                  ? `Longest wait so far: ${formatWait(oldestJoinedAt)}`
-                  : "Next seat opens soon."}
-              </p>
-            </div>
-            <SeatDots filled={Math.min(count, BATCH_SIZE)} />
-          </div>
-        </div>
       </div>
     );
   }
 
-  if (status === "idle") {
-    return (
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-12">
-        <div className="group glass-card flex min-h-[320px] cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-border/70 p-8 text-center transition-all duration-300 hover:border-primary/50 md:col-span-8">
-          <span className="flex size-20 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-transform duration-300 group-hover:scale-110">
-            <Users className="size-9" />
-          </span>
-          <h2 className="text-2xl font-bold tracking-tight">Find my people</h2>
-          <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-            Groups of {BATCH_SIZE} freshies with matching vibes get seated
-            together. Join the queue and say hi before classes start.
-          </p>
-          <Button
-            onClick={() => void join()}
-            className="mt-2 h-auto rounded-xl px-8 py-3 text-sm font-bold shadow-lg transition-all duration-300 hover:-translate-y-0.5"
-          >
-            Start matching
-          </Button>
-        </div>
-
-        <div className="glass-card relative flex min-h-[320px] flex-col overflow-hidden rounded-2xl p-6 md:col-span-4">
-          <span
-            aria-hidden
-            className="pointer-events-none absolute -top-10 -left-10 size-32 rounded-full bg-primary/10 blur-2xl"
-          />
-          <div className="relative flex flex-1 flex-col">
-            <div className="mb-4 flex items-start justify-between">
-              <h2 className="text-lg font-bold">Queue status</h2>
-              <span className="rounded-full bg-muted px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                Idle
-              </span>
-            </div>
-            <div className="flex flex-1 flex-col items-center justify-center">
-              <p className="text-6xl font-black tabular-nums text-muted-foreground/50">
-                –<span className="text-3xl font-bold"> / {BATCH_SIZE}</span>
-              </p>
-              <p className="mt-2 text-center text-sm font-medium text-muted-foreground">
-                You&apos;re not in the queue yet.
-              </p>
-            </div>
-            <SeatDots filled={0} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  // 3. HOME / IDLE HERO VIEW
   return (
-    <div className="glass-card rounded-2xl p-8 text-center text-sm text-muted-foreground">
-      Your room is opening…
+    <div className="flex w-full flex-col gap-8">
+      {/* Hero Match Card */}
+      <section className="glass-card relative overflow-hidden rounded-3xl p-6 sm:p-8 md:p-10 shadow-card-md">
+        <div
+          className="absolute -right-16 -top-16 size-64 rounded-full bg-[#006633]/5 blur-3xl pointer-events-none"
+        />
+        <div
+          className="absolute -left-16 -bottom-16 size-64 rounded-full bg-[#FDB913]/10 blur-3xl pointer-events-none"
+        />
+
+        <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6 text-left">
+          <div className="flex flex-col gap-2 max-w-xl">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#006633]/20 bg-[#f0faf5] px-3 py-1 text-xs font-black uppercase text-[#006633]">
+                <span className="size-2 rounded-full bg-[#16a34a] animate-pulse" />
+                Live Matchmaker Active
+              </span>
+              <span className="rounded-full bg-[#FDB913]/20 px-2.5 py-1 text-xs font-bold text-[#b45309]">
+                ⚡ ~15s Avg Match
+              </span>
+            </div>
+
+            <h2 className="text-2xl font-black tracking-tight text-[#006633] sm:text-3xl md:text-4xl">
+              Find Your 4-Person Tamaraw Batch Room
+            </h2>
+            <p className="text-xs sm:text-sm leading-relaxed text-muted-foreground">
+              Instant 24-hour group chats with fellow FEU freshies matched by your campus lifestyle, study habits, and favorite spots.
+            </p>
+
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <Button
+                onClick={() => void join()}
+                className="h-13 rounded-2xl bg-[#006633] px-8 text-sm font-extrabold text-[#FDB913] shadow-cta transition-all duration-300 hover:scale-[1.02] hover:bg-[#004d26]"
+              >
+                🎲 Enter Matchmaking Queue
+                <ArrowRight className="ml-1.5 size-4" />
+              </Button>
+
+              <span className="text-xs font-semibold text-muted-foreground">
+                Rooms self-destruct in 24h
+              </span>
+            </div>
+          </div>
+
+          <div className="flex size-24 sm:size-28 shrink-0 items-center justify-center rounded-3xl bg-[#006633] text-[#FDB913] shadow-cta">
+            <MessageSquare className="size-12 sm:size-14 fill-[#FDB913]" />
+          </div>
+        </div>
+      </section>
+
+      {/* Live Stats Row */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="glass-card flex flex-col items-center rounded-2xl p-4 text-center shadow-2xs hover:border-[#006633]/30 transition-all">
+          <span className="text-2xl">💬</span>
+          <span className="mt-1 text-xl font-black text-[#006633] tabular-nums">
+            {stats?.activeRooms ?? 0}
+          </span>
+          <span className="text-[11px] font-medium text-muted-foreground">Active Batch Rooms</span>
+        </div>
+
+        <div className="glass-card flex flex-col items-center rounded-2xl p-4 text-center shadow-2xs hover:border-[#006633]/30 transition-all">
+          <span className="text-2xl">🟢</span>
+          <span className="mt-1 text-xl font-black text-[#006633] tabular-nums">
+            {stats?.onlineFreshies ?? 1}
+          </span>
+          <span className="text-[11px] font-medium text-muted-foreground">Freshies Online</span>
+        </div>
+
+        <div className="glass-card flex flex-col items-center rounded-2xl p-4 text-center shadow-2xs hover:border-[#006633]/30 transition-all">
+          <span className="text-2xl">🔥</span>
+          <span className="mt-1 text-xl font-black text-[#006633] tabular-nums">
+            {stats?.matchesToday ?? 0}
+          </span>
+          <span className="text-[11px] font-medium text-muted-foreground">Matches Today</span>
+        </div>
+
+        <div className="glass-card flex flex-col items-center rounded-2xl p-4 text-center shadow-2xs hover:border-[#006633]/30 transition-all">
+          <span className="text-2xl">⏳</span>
+          <span className="mt-1 text-xl font-black text-[#006633] tabular-nums">
+            24h
+          </span>
+          <span className="text-[11px] font-medium text-muted-foreground">Room Lifespan</span>
+        </div>
+      </section>
+
+      {/* Quick Campus Shortcuts */}
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Link
+          href="/groups"
+          className="glass-card group flex items-center justify-between rounded-2xl p-4 shadow-2xs transition-all hover:-translate-y-0.5 hover:border-[#006633] hover:shadow-sm"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-[#006633]/10 text-[#006633] group-hover:bg-[#006633] group-hover:text-[#FDB913] transition-colors">
+              <BookOpen className="size-5" />
+            </span>
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-bold text-foreground">Institutes &amp; Programs</span>
+              <span className="text-[10px] text-muted-foreground">Explore 6 institutes</span>
+            </div>
+          </div>
+          <ArrowRight className="size-4 text-muted-foreground group-hover:text-[#006633] transition-colors" />
+        </Link>
+
+        <Link
+          href="/members"
+          className="glass-card group flex items-center justify-between rounded-2xl p-4 shadow-2xs transition-all hover:-translate-y-0.5 hover:border-[#006633] hover:shadow-sm"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-[#006633]/10 text-[#006633] group-hover:bg-[#006633] group-hover:text-[#FDB913] transition-colors">
+              <Users className="size-5" />
+            </span>
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-bold text-foreground">Met Freshies</span>
+              <span className="text-[10px] text-muted-foreground">Your Tamaraw circle</span>
+            </div>
+          </div>
+          <ArrowRight className="size-4 text-muted-foreground group-hover:text-[#006633] transition-colors" />
+        </Link>
+
+        <Link
+          href="/settings"
+          className="glass-card group flex items-center justify-between rounded-2xl p-4 shadow-2xs transition-all hover:-translate-y-0.5 hover:border-[#006633] hover:shadow-sm"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-[#006633]/10 text-[#006633] group-hover:bg-[#006633] group-hover:text-[#FDB913] transition-colors">
+              <GraduationCap className="size-5" />
+            </span>
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-bold text-foreground">Profile &amp; Vibes</span>
+              <span className="text-[10px] text-muted-foreground">Manage your identity</span>
+            </div>
+          </div>
+          <ArrowRight className="size-4 text-muted-foreground group-hover:text-[#006633] transition-colors" />
+        </Link>
+      </section>
     </div>
   );
 }

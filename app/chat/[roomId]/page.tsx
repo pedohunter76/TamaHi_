@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 
-import { LeaveRoomButton } from "@/components/leave-room-button";
-import { RoomChat } from "@/components/room-chat";
-import { RoomCountdown } from "@/components/room-countdown";
+import { TopNav } from "@/components/layout/top-nav";
+import { RoomChat, type RoomParticipant } from "@/components/room-chat";
 import { formatMemberDisplayName } from "@/lib/profile/constants";
 import { createClient } from "@/lib/supabase/server";
 
@@ -59,7 +58,7 @@ export default async function ChatRoomPage({
     userIds.length > 0
       ? await supabase
           .from("profiles")
-          .select("id, nickname, institute, course")
+          .select("id, nickname, institute, course, vibes")
           .in("id", userIds)
       : { data: [] };
 
@@ -69,6 +68,7 @@ export default async function ChatRoomPage({
       nickname?: string | null;
       institute?: string | null;
       course?: string | null;
+      vibes?: number[] | null;
     }
   >();
 
@@ -76,7 +76,7 @@ export default async function ChatRoomPage({
     profilesById.set(p.id as string, p);
   }
 
-  const roster = userIds.map((userId) => {
+  const roster: RoomParticipant[] = userIds.map((userId) => {
     const profile = profilesById.get(userId);
     const nickname = profile?.nickname?.trim() || "Freshie";
     const displayName = formatMemberDisplayName(
@@ -90,6 +90,7 @@ export default async function ChatRoomPage({
       displayName,
       institute: profile?.institute ?? null,
       course: profile?.course ?? null,
+      vibes: (profile?.vibes as number[] | null) ?? null,
     };
   });
 
@@ -98,33 +99,49 @@ export default async function ChatRoomPage({
   );
 
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 py-6">
-      <header className="flex items-center justify-between gap-3">
-        <div className="flex -space-x-1.5">
-          {roster.map((member) => (
-            <span
-              key={member.userId}
-              title={`${member.displayName}${member.course ? ` (${member.course})` : ""}`}
-              className="flex size-8 items-center justify-center rounded-full border bg-muted text-xs font-semibold shadow-xs"
-            >
-              {member.nickname.slice(0, 1).toUpperCase()}
-            </span>
-          ))}
-        </div>
-        <RoomCountdown expiresAtIso={room.expires_at as string} />
-      </header>
-
-      <RoomChat
-        roomId={roomId}
-        currentUserId={user.id}
-        displayNamesById={displayNamesById}
-        ended={ended}
+    <div className="mesh-bg relative min-h-dvh flex flex-col overflow-x-hidden">
+      {/* Dynamic Ambient Background Shapes */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-20 top-12 size-96 rounded-full bg-gradient-to-br from-[#006633]/15 to-transparent blur-3xl animate-pulse-glow"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-24 top-40 size-96 rounded-full bg-gradient-to-bl from-[#FDB913]/20 to-transparent blur-3xl animate-pulse-glow"
+        style={{ animationDelay: "2.5s" }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute bottom-20 left-1/3 size-80 rounded-full bg-gradient-to-tr from-[#16a34a]/10 to-transparent blur-3xl animate-float-slow"
       />
 
-      <div className="flex justify-center">
-        <LeaveRoomButton roomId={roomId} />
+      {/* Subtle Floating Geometric Emblems */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-8 top-32 hidden size-16 rounded-2xl border border-[#006633]/15 bg-white/40 p-3 shadow-2xs backdrop-blur-xs lg:flex items-center justify-center animate-float-slow text-[#006633]"
+      >
+        <span className="text-xl font-black">🔰</span>
       </div>
-    </section>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute right-10 top-60 hidden size-14 rounded-full border border-[#FDB913]/30 bg-white/40 shadow-2xs backdrop-blur-xs lg:flex items-center justify-center animate-float-reverse text-base font-black text-[#FDB913]"
+      >
+        ✨
+      </div>
+
+      <TopNav />
+      <main className="relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col px-3.5 pb-8 pt-18 sm:px-6 md:pt-20">
+        <RoomChat
+          roomId={roomId}
+          currentUserId={user.id}
+          displayNamesById={displayNamesById}
+          roster={roster}
+          expiresAtIso={room.expires_at as string}
+          ended={ended}
+        />
+      </main>
+    </div>
   );
 }
+
 
