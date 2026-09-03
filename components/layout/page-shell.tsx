@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { SessionLifecycleTracker } from "@/components/session-lifecycle-tracker";
 import { cn } from "@/lib/utils";
 
 export function PageShell({
@@ -13,6 +14,7 @@ export function PageShell({
     <div
       className={cn("flex w-full flex-1 flex-col", className)}
     >
+      <SessionLifecycleTracker />
       {children}
     </div>
   );

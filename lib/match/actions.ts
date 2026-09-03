@@ -182,14 +182,35 @@ export async function getQueueState(): Promise<QueueState> {
 export async function leaveRoom(roomId: string): Promise<void> {
   const { supabase, userId } = await requireUser();
 
-  const { error } = await supabase
-    .from("room_members")
-    .delete()
-    .eq("room_id", roomId)
-    .eq("user_id", userId);
+  try {
+    await supabase.rpc("leave_room_and_cleanup", {
+      p_user_id: userId,
+      p_room_id: roomId,
+    });
+  } catch {
+    await supabase
+      .from("room_members")
+      .delete()
+      .eq("room_id", roomId)
+      .eq("user_id", userId);
+  }
 
-  if (error) {
-    throw new Error(error.message);
+  // Also ensure not in queue
+  await supabase.from("match_queue").delete().eq("user_id", userId);
+}
+
+export async function quitAndResetAll(): Promise<void> {
+  const { supabase, userId } = await requireUser();
+
+  try {
+    await supabase.rpc("user_quit_and_reset", {
+      p_user_id: userId,
+    });
+  } catch {
+    await Promise.allSettled([
+      supabase.from("room_members").delete().eq("user_id", userId),
+      supabase.from("match_queue").delete().eq("user_id", userId),
+    ]);
   }
 }
 

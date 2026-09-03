@@ -1,6 +1,6 @@
 "use client";
 
-import { Compass, Download, Info, MessageSquare, Sparkles } from "lucide-react";
+import { Compass, Download, Info, LogOut, MessageSquare, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CampusTipsSheet } from "@/components/campus-tips-sheet";
@@ -15,6 +15,7 @@ import { RoomPoll } from "@/components/room-poll";
 import { RoomSessionRecap } from "@/components/room-session-recap";
 import { RoomSocialExchange } from "@/components/room-social-exchange";
 import type { ChatMessage } from "@/lib/chat/types";
+import { leaveRoom } from "@/lib/match/actions";
 import { playPing } from "@/lib/notification";
 import { formatMemberDisplayName, getInstituteShortName } from "@/lib/profile/constants";
 import { playMatchChime, playMessagePop } from "@/lib/sound";
@@ -413,6 +414,31 @@ export function RoomChat({
               title="Toggle Batch Members Info"
             >
               <Info className="size-4" />
+            </button>
+
+            {/* Quick Leave / Reset Room Button */}
+            <button
+              type="button"
+              onClick={async () => {
+                if (window.confirm("Leave this room and return to the lobby?")) {
+                  try {
+                    await leaveRoom(roomId);
+                    if (typeof window !== "undefined") {
+                      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+                      window.location.href = "/lobby";
+                    }
+                  } catch {
+                    if (typeof window !== "undefined") {
+                      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+                      window.location.href = "/lobby";
+                    }
+                  }
+                }
+              }}
+              className="flex size-8 items-center justify-center rounded-xl bg-destructive/10 text-destructive transition-all hover:scale-105 hover:bg-destructive hover:text-white shadow-2xs"
+              title="Leave Room & Reset"
+            >
+              <LogOut className="size-4" />
             </button>
           </div>
         </div>

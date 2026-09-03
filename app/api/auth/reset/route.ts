@@ -25,6 +25,21 @@ export async function GET(request: Request) {
   );
 
   try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      try {
+        await supabase.rpc("user_quit_and_reset", { p_user_id: user.id });
+      } catch {
+        await Promise.allSettled([
+          supabase.from("room_members").delete().eq("user_id", user.id),
+          supabase.from("match_queue").delete().eq("user_id", user.id),
+        ]);
+      }
+    }
+
     await supabase.auth.signOut();
   } catch {
     // ignore sign out error

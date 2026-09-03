@@ -1,11 +1,12 @@
 "use client";
 
-import { Bell, Compass, Home, User, Users, Volume2, VolumeX } from "lucide-react";
+import { Bell, Compass, Home, RotateCcw, User, Users, Volume2, VolumeX } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { TamaHiIcon } from "@/components/brand-logo";
+import { quitAndResetAll } from "@/lib/match/actions";
 import { isSoundMuted, playMessagePop, setSoundMuted } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 
@@ -92,6 +93,33 @@ export function TopNav() {
           <Bell className="size-4" />
           <span className="absolute right-2 top-2 size-2 rounded-full border-[1.5px] border-[#006633] bg-[#FDB913]" />
         </Link>
+
+        {/* Quit & Reset All Button */}
+        <button
+          type="button"
+          onClick={async () => {
+            if (window.confirm("Quit site and reset your batch/queue status?")) {
+              try {
+                await quitAndResetAll();
+                if (typeof window !== "undefined") {
+                  sessionStorage.clear();
+                  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+                  window.location.href = "/lobby";
+                }
+              } catch {
+                if (typeof window !== "undefined") {
+                  sessionStorage.clear();
+                  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+                  window.location.href = "/lobby";
+                }
+              }
+            }
+          }}
+          className="flex size-9 items-center justify-center rounded-lg bg-white/10 text-white transition-colors hover:bg-destructive hover:text-white"
+          title="Quit Site & Reset All"
+        >
+          <RotateCcw className="size-4" />
+        </button>
       </div>
     </header>
   );

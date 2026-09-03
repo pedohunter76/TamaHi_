@@ -4,6 +4,7 @@ import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { quitAndResetAll } from "@/lib/match/actions";
 import { createClient } from "@/lib/supabase/client";
 
 export function SignOutButton() {
@@ -17,10 +18,19 @@ export function SignOutButton() {
       onClick={async () => {
         setPending(true);
         try {
+          // Clean up room memberships and queue rows first
+          await quitAndResetAll();
+          if (typeof window !== "undefined") {
+            sessionStorage.clear();
+          }
+
           const supabase = createClient();
           await supabase.auth.signOut();
           router.replace("/login");
-          router.refresh();
+          if (typeof window !== "undefined") {
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+            window.location.href = "/login";
+          }
         } catch {
           setPending(false);
         }
