@@ -14,19 +14,26 @@ export function LeaveRoomButton({ roomId }: { roomId: string }) {
       type="button"
       disabled={pending}
       onClick={async () => {
-        if (!window.confirm("Leave this batch room and reset your spot?")) {
+        if (
+          !window.confirm(
+            "Leave this batch room? You will not be able to rejoin this room, but your batchmates can continue chatting.",
+          )
+        ) {
           return;
         }
         setPending(true);
         try {
           await leaveRoom(roomId);
-          router.replace("/lobby");
           if (typeof window !== "undefined") {
-            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-            window.location.href = "/lobby";
+            window.location.replace("/lobby");
+          } else {
+            router.replace("/lobby");
           }
         } catch {
           setPending(false);
+          if (typeof window !== "undefined") {
+            window.location.replace("/lobby");
+          }
         }
       }}
       className="text-xs font-semibold text-muted-foreground underline-offset-4 hover:text-destructive hover:underline disabled:opacity-50 transition-colors"

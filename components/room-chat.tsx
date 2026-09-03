@@ -79,6 +79,12 @@ export function RoomChat({
   const [isCampusGuideOpen, setIsCampusGuideOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<MemberModalData | null>(null);
   const [fetchedNames, setFetchedNames] = useState<Record<string, string>>({});
+  const [departedUserIds, setDepartedUserIds] = useState<string[]>([]);
+
+  const activeRoster = useMemo(
+    () => roster.filter((m) => !departedUserIds.includes(m.userId)),
+    [roster, departedUserIds],
+  );
 
   const namesMap = useMemo(
     () => ({
@@ -200,6 +206,28 @@ export function RoomChat({
         },
         () => {
           void loadReactions(roomId);
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "room_members",
+        },
+        (payload) => {
+          const oldRow = payload.old as { user_id?: string; room_id?: string } | undefined;
+          if (oldRow?.room_id && oldRow.room_id !== roomId) return;
+          const departedId = oldRow?.user_id;
+          if (departedId) {
+            if (departedId === currentUserId) {
+              window.location.replace("/lobby");
+              return;
+            }
+            setDepartedUserIds((prev) =>
+              prev.includes(departedId) ? prev : [...prev, departedId],
+            );
+          }
         },
       )
       .on("broadcast", { event: "typing" }, ({ payload }) => {
@@ -354,7 +382,7 @@ export function RoomChat({
             {/* Participants Stack with tooltips */}
             <div className="flex items-center gap-1.5 rounded-2xl border border-[#e5e7eb] bg-white/80 px-2 py-1 shadow-2xs backdrop-blur-xs">
               <div className="flex -space-x-2">
-                {roster.map((member) => (
+                {activeRoster.map((member) => (
                   <button
                     type="button"
                     key={member.userId}
@@ -375,7 +403,7 @@ export function RoomChat({
                 ))}
               </div>
               <span className="text-[11px] font-bold text-[#006633] pl-1">
-                {roster.length}/4
+                {activeRoster.length}/4
               </span>
             </div>
 
@@ -416,27 +444,25 @@ export function RoomChat({
               <Info className="size-4" />
             </button>
 
-            {/* Quick Leave / Reset Room Button */}
+            {/* Quick Leave Room Button */}
             <button
               type="button"
               onClick={async () => {
-                if (window.confirm("Leave this room and return to the lobby?")) {
+                if (
+                  window.confirm(
+                    "Leave this batch room? You will not be able to rejoin this room, but your batchmates can continue chatting.",
+                  )
+                ) {
                   try {
                     await leaveRoom(roomId);
-                    if (typeof window !== "undefined") {
-                      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-                      window.location.href = "/lobby";
-                    }
+                    window.location.replace("/lobby");
                   } catch {
-                    if (typeof window !== "undefined") {
-                      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-                      window.location.href = "/lobby";
-                    }
+                    window.location.replace("/lobby");
                   }
                 }
               }}
               className="flex size-8 items-center justify-center rounded-xl bg-destructive/10 text-destructive transition-all hover:scale-105 hover:bg-destructive hover:text-white shadow-2xs"
-              title="Leave Room & Reset"
+              title="Leave Room"
             >
               <LogOut className="size-4" />
             </button>
@@ -445,7 +471,7 @@ export function RoomChat({
       </header>
 
       {/* Interactive Batch Members Roster Cards */}
-      {showInfo && roster.length > 0 ? (
+      {showInfo && activeRoster.length > 0 ? (
         <div className="room-glass-panel flex flex-col gap-2.5 rounded-3xl p-4 shadow-card-md animate-in fade-in slide-in-from-top-3 duration-300">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-[#006633]">
@@ -458,7 +484,7 @@ export function RoomChat({
           </div>
 
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-            {roster.map((member) => {
+            {activeRoster.map((member) => {
               const instShort = getInstituteShortName(member.institute);
               return (
                 <button

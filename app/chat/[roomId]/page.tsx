@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { TopNav } from "@/components/layout/top-nav";
 import { RoomChat, type RoomParticipant } from "@/components/room-chat";
+import { RoomLeftNotice } from "@/components/room-left-notice";
 import { formatMemberDisplayName } from "@/lib/profile/constants";
 import { createClient } from "@/lib/supabase/server";
 
@@ -31,6 +32,22 @@ export default async function ChatRoomPage({
     .maybeSingle();
 
   if (!membership) {
+    const { data: leftRecord } = await supabase
+      .from("room_leaves")
+      .select("left_at")
+      .eq("room_id", roomId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (leftRecord) {
+      return (
+        <RoomLeftNotice
+          roomId={roomId}
+          leftAtIso={(leftRecord.left_at as string) ?? undefined}
+        />
+      );
+    }
+
     notFound();
   }
 

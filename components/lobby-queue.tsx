@@ -67,8 +67,15 @@ export function LobbyQueue() {
 
     void refresh();
 
-    // Rapid 1.2s polling while waiting in queue, 5s when idle
-    const pollIntervalMs = status === "waiting" || status === "joining" ? 1200 : 5000;
+    // High-frequency polling when waiting/joining; ultra-fast when queue is full
+    const isFull = count >= BATCH_SIZE;
+    const pollIntervalMs =
+      status === "waiting" || status === "joining"
+        ? isFull
+          ? 350
+          : 1200
+        : 5000;
+
     const interval = setInterval(() => {
       void refresh();
     }, pollIntervalMs);
@@ -77,7 +84,7 @@ export function LobbyQueue() {
       clearInterval(interval);
       void supabase.removeChannel(channel);
     };
-  }, [refresh, status]);
+  }, [refresh, status, count]);
 
   useEffect(() => {
     if (status === "waiting" || status === "joining") {
@@ -88,13 +95,19 @@ export function LobbyQueue() {
     }
   }, [status]);
 
+  // IF QUEUE IS FULL, immediately trigger matching and auto-direct
+  useEffect(() => {
+    if ((status === "waiting" || status === "joining") && count >= BATCH_SIZE) {
+      void refresh();
+    }
+  }, [status, count, refresh]);
+
   useEffect(() => {
     if (status === "matched" && roomId) {
       // Direct guaranteed redirection to the chat room
       router.replace(`/chat/${roomId}`);
       if (typeof window !== "undefined") {
-        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-        window.location.href = `/chat/${roomId}`;
+        window.location.replace(`/chat/${roomId}`);
       }
     }
   }, [status, roomId, router]);
@@ -189,11 +202,11 @@ export function LobbyQueue() {
 
           {/* Heading */}
           <h2 className="text-2xl font-black tracking-tight text-[#006633]">
-            {isReady ? "Room Ready! 🎉" : "Finding Freshies..."}
+            {isReady ? "Batch Full! Auto-Directing… 🎉" : "Finding Freshies..."}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
             {isReady
-              ? "Entering your chat room now…"
+              ? "All 4 seats filled! Launching your 24-hour Tamaraw room now…"
               : "Matching you with 3 other FEU freshies based on campus vibes."}
           </p>
 

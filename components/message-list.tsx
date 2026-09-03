@@ -161,6 +161,23 @@ export function MessageList({
         ) : null}
 
         {filteredMessages.map((message) => {
+          const isSystemDeparture =
+            message.content.startsWith("👋 ") &&
+            message.content.includes("has left the batch room");
+
+          if (isSystemDeparture) {
+            return (
+              <div key={message.id} className="my-2 flex justify-center animate-in fade-in">
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-destructive/25 bg-destructive/5 px-4 py-1.5 text-[11px] font-bold text-destructive shadow-2xs">
+                  <span>{message.content}</span>
+                  <span className="text-[10px] text-muted-foreground font-semibold">
+                    (Chat continues)
+                  </span>
+                </div>
+              </div>
+            );
+          }
+
           const isOwn = message.userId === currentUserId;
           const groups = reactions[message.id] ?? [];
           const pickerOpen = pickerFor === message.id;

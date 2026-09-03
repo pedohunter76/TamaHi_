@@ -10,6 +10,7 @@ import {
   tryMatch,
 } from "@/lib/match/actions";
 import type { QueueState } from "@/lib/match/actions";
+import { BATCH_SIZE } from "@/lib/match/constants";
 
 type QueueStatus = "idle" | "joining" | "waiting" | "matched";
 
@@ -25,8 +26,7 @@ type QueueStore = QueueState & {
 
 function navigateToRoom(roomId: string) {
   if (typeof window !== "undefined") {
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.href = `/chat/${roomId}`;
+    window.location.replace(`/chat/${roomId}`);
   }
 }
 
@@ -86,6 +86,21 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
         stats: state.stats,
         justMatched: false,
       });
+
+      // IF QUEUE IS FULL, immediately trigger matching and auto-direct
+      if (state.count >= BATCH_SIZE) {
+        const fullQueueRoomId = await tryMatch();
+        if (fullQueueRoomId) {
+          set({
+            status: "matched",
+            roomId: fullQueueRoomId,
+            queued: false,
+            justMatched: true,
+          });
+          navigateToRoom(fullQueueRoomId);
+          return;
+        }
+      }
     } catch {
       set({
         status: "idle",
@@ -183,6 +198,21 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
           stats: state.stats,
           justMatched: false,
         });
+
+        // IF THE QUEUING IS FULL, auto direct to the room immediately!
+        if (state.count >= BATCH_SIZE) {
+          const autoMatchRoomId = await tryMatch();
+          if (autoMatchRoomId) {
+            set({
+              status: "matched",
+              roomId: autoMatchRoomId,
+              queued: false,
+              justMatched: true,
+            });
+            navigateToRoom(autoMatchRoomId);
+            return;
+          }
+        }
       } else {
         set({
           status: "idle",

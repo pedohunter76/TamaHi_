@@ -3,31 +3,18 @@
 import { useEffect } from "react";
 
 /**
- * Automatically cleans up user state (room memberships & queue positions)
- * when a user closes the browser tab or quits the site, and ensures fresh
- * state when returning from a closed session.
+ * Automatically cleans up user queue state (ghost rows in match_queue)
+ * when a user closes the browser tab while waiting in queue,
+ * while preserving active 24-hour room memberships.
  */
 export function SessionLifecycleTracker() {
   useEffect(() => {
-    // sessionStorage is scoped to the browser tab lifecycle and is destroyed
-    // when the tab is closed, but preserved across reloads (F5).
-    const isAlive = sessionStorage.getItem("tamahi_session_alive");
-
-    if (!isAlive) {
-      // User opened a fresh tab after quitting: purge any orphaned room/queue rows
-      void fetch("/api/user/quit", {
-        method: "POST",
-      }).catch(() => {});
-
-      sessionStorage.setItem("tamahi_session_alive", "1");
-    }
-
-    // When the user closes the tab or navigates away from the site
+    // When the user closes the tab, send beacon to release their spot in match_queue
     function handleSiteQuit() {
       if (typeof navigator !== "undefined" && navigator.sendBeacon) {
-        navigator.sendBeacon("/api/user/quit");
+        navigator.sendBeacon("/api/queue/leave");
       } else {
-        void fetch("/api/user/quit", {
+        void fetch("/api/queue/leave", {
           method: "POST",
           keepalive: true,
         }).catch(() => {});

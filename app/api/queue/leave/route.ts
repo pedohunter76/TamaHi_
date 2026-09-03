@@ -10,17 +10,13 @@ export async function POST() {
     } = await supabase.auth.getUser();
 
     if (user) {
-      try {
-        await supabase.rpc("user_quit_and_reset", { p_user_id: user.id });
-      } catch {
-        await Promise.allSettled([
-          supabase.from("room_members").delete().eq("user_id", user.id),
-          supabase.from("match_queue").delete().eq("user_id", user.id),
-        ]);
-      }
+      await supabase
+        .from("match_queue")
+        .delete()
+        .eq("user_id", user.id);
     }
   } catch {
-    // Ignore error
+    // Ignore error on teardown beacon
   }
 
   return new NextResponse(null, { status: 204 });

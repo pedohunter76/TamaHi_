@@ -25,33 +25,48 @@ export async function findLatestVisibleRoom(
 
   const nowIso = new Date().toISOString();
 
-  // 2. Query room_members joining active rooms
+  // 2. Fetch any room leaves to strictly prevent returning departed rooms
+  const { data: leftRows } = await supabase
+    .from("room_leaves")
+    .select("room_id")
+    .eq("user_id", userId);
+
+  const leftRoomIds = new Set((leftRows ?? []).map((r) => r.room_id as string));
+
+  // 3. Query room_members joining active rooms
   const { data: memberships } = await supabase
     .from("room_members")
     .select("room_id, joined_at, rooms!inner(id, expires_at)")
     .eq("user_id", userId)
     .gt("rooms.expires_at", nowIso)
     .order("joined_at", { ascending: false })
-    .limit(1);
+    .limit(5);
 
-  if (memberships && memberships.length > 0 && memberships[0].room_id) {
-    return memberships[0].room_id as string;
+  const validMembership = (memberships ?? []).find(
+    (m) => m.room_id && !leftRoomIds.has(m.room_id as string),
+  );
+
+  if (validMembership && validMembership.room_id) {
+    return validMembership.room_id as string;
   }
 
-  // 3. Fallback: query recent memberships and find any active unexpired room
+  // 4. Fallback: query recent memberships and find any active unexpired room
   const { data: recentMemberships } = await supabase
     .from("room_members")
     .select("room_id, joined_at")
     .eq("user_id", userId)
     .order("joined_at", { ascending: false })
-    .limit(5);
+    .limit(10);
 
-  if (recentMemberships && recentMemberships.length > 0) {
-    const roomIds = recentMemberships.map((m) => m.room_id as string);
+  const candidates = (recentMemberships ?? [])
+    .map((m) => m.room_id as string)
+    .filter((id) => !leftRoomIds.has(id));
+
+  if (candidates.length > 0) {
     const { data: activeRooms } = await supabase
       .from("rooms")
       .select("id, expires_at")
-      .in("id", roomIds)
+      .in("id", candidates)
       .gt("expires_at", nowIso)
       .order("created_at", { ascending: false })
       .limit(1);
@@ -188,11 +203,14 @@ export async function leaveRoom(roomId: string): Promise<void> {
       p_room_id: roomId,
     });
   } catch {
-    await supabase
-      .from("room_members")
-      .delete()
-      .eq("room_id", roomId)
-      .eq("user_id", userId);
+    await Promise.allSettled([
+      supabase.from("room_leaves").insert({ room_id: roomId, user_id: userId }),
+      supabase
+        .from("room_members")
+        .delete()
+        .eq("room_id", roomId)
+        .eq("user_id", userId),
+    ]);
   }
 
   // Also ensure not in queue
