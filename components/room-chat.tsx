@@ -16,12 +16,14 @@ import { RoomSessionRecap } from "@/components/room-session-recap";
 import { RoomSocialExchange } from "@/components/room-social-exchange";
 import type { ChatMessage } from "@/lib/chat/types";
 import { leaveRoom } from "@/lib/match/actions";
+import { markRoomDeparted } from "@/lib/match/left-rooms";
 import { playPing } from "@/lib/notification";
 import { formatMemberDisplayName, getInstituteShortName } from "@/lib/profile/constants";
 import { playMatchChime, playMessagePop } from "@/lib/sound";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useChatStore } from "@/store/chat-store";
+import { useQueueStore } from "@/store/queue-store";
 
 type RawRealtimeRow = {
   id: string;
@@ -221,6 +223,8 @@ export function RoomChat({
           const departedId = oldRow?.user_id;
           if (departedId) {
             if (departedId === currentUserId) {
+              markRoomDeparted(roomId);
+              useQueueStore.getState().resetRoom();
               window.location.replace("/lobby");
               return;
             }
@@ -453,10 +457,13 @@ export function RoomChat({
                     "Leave this batch room? You will not be able to rejoin this room, but your batchmates can continue chatting.",
                   )
                 ) {
+                  markRoomDeparted(roomId);
+                  useQueueStore.getState().resetRoom();
                   try {
                     await leaveRoom(roomId);
-                    window.location.replace("/lobby");
                   } catch {
+                    // Ignore error and proceed to lobby
+                  } finally {
                     window.location.replace("/lobby");
                   }
                 }

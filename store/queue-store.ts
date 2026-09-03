@@ -8,9 +8,10 @@ import {
   leaveQueue,
   startEarlyMatch,
   tryMatch,
+  type QueueState,
 } from "@/lib/match/actions";
-import type { QueueState } from "@/lib/match/actions";
 import { BATCH_SIZE } from "@/lib/match/constants";
+import { isRoomDeparted } from "@/lib/match/left-rooms";
 
 type QueueStatus = "idle" | "joining" | "waiting" | "matched";
 
@@ -22,6 +23,7 @@ type QueueStore = QueueState & {
   leave: () => Promise<void>;
   startEarly: () => Promise<void>;
   refresh: () => Promise<void>;
+  resetRoom: () => void;
 };
 
 function navigateToRoom(roomId: string) {
@@ -43,6 +45,16 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
   },
   error: null,
   justMatched: false,
+
+  resetRoom() {
+    set({
+      status: "idle",
+      queued: false,
+      roomId: null,
+      justMatched: false,
+      error: null,
+    });
+  },
 
   async join() {
     set({ status: "joining", error: null });
@@ -178,6 +190,17 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
       const state = await getQueueState();
 
       if (state.roomId) {
+        if (typeof window !== "undefined" && isRoomDeparted(state.roomId)) {
+          set({
+            status: "idle",
+            roomId: null,
+            stats: state.stats,
+            queued: false,
+            justMatched: false,
+          });
+          return;
+        }
+
         set({
           status: "matched",
           roomId: state.roomId,

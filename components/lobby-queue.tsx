@@ -17,6 +17,7 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { BATCH_SIZE } from "@/lib/match/constants";
+import { isRoomDeparted } from "@/lib/match/left-rooms";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useQueueStore } from "@/store/queue-store";
@@ -104,6 +105,10 @@ export function LobbyQueue() {
 
   useEffect(() => {
     if (status === "matched" && roomId) {
+      if (isRoomDeparted(roomId)) {
+        useQueueStore.getState().resetRoom();
+        return;
+      }
       // Direct guaranteed redirection to the chat room
       router.replace(`/chat/${roomId}`);
       if (typeof window !== "undefined") {

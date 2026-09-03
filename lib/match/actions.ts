@@ -1,6 +1,7 @@
 "use server";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
 
 import { BATCH_SIZE } from "@/lib/match/constants";
 import { pickBatch, type QueueEntry } from "@/lib/match/group";
@@ -10,37 +11,58 @@ export async function findLatestVisibleRoom(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<string | null> {
-  // 1. Try security-definer RPC if available
+  const nowIso = new Date().toISOString();
+
+  // 1. Read left rooms from cookie
+  const leftRoomIds = new Set<string>();
   try {
-    const { data: rpcRoomId } = await supabase.rpc("get_user_active_room", {
+    const cookieStore = await cookies();
+    const raw = cookieStore.get("tamahi_left_rooms")?.value;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        for (const id of parsed) leftRoomIds.add(id);
+      }
+    }
+  } catch {
+    // Ignore cookie read error
+  }
+
+  // 2. Try fetching room_leaves from DB if table exists
+  try {
+    const { data: leftRows } = await supabase
+      .from("room_leaves")
+      .select("room_id")
+      .eq("user_id", userId);
+
+    for (const row of leftRows ?? []) {
+      if (row?.room_id) leftRoomIds.add(row.room_id as string);
+    }
+  } catch {
+    // Table may not exist yet
+  }
+
+  // 3. Try security-definer RPC if available
+  try {
+    const { data: rpcRoomId, error } = await supabase.rpc("get_user_active_room", {
       p_user_id: userId,
     });
 
-    if (rpcRoomId) {
+    if (rpcRoomId && !error && !leftRoomIds.has(rpcRoomId as string)) {
       return rpcRoomId as string;
     }
   } catch {
     // Fall back to direct query
   }
 
-  const nowIso = new Date().toISOString();
-
-  // 2. Fetch any room leaves to strictly prevent returning departed rooms
-  const { data: leftRows } = await supabase
-    .from("room_leaves")
-    .select("room_id")
-    .eq("user_id", userId);
-
-  const leftRoomIds = new Set((leftRows ?? []).map((r) => r.room_id as string));
-
-  // 3. Query room_members joining active rooms
+  // 4. Query room_members joining active rooms
   const { data: memberships } = await supabase
     .from("room_members")
     .select("room_id, joined_at, rooms!inner(id, expires_at)")
     .eq("user_id", userId)
     .gt("rooms.expires_at", nowIso)
     .order("joined_at", { ascending: false })
-    .limit(5);
+    .limit(10);
 
   const validMembership = (memberships ?? []).find(
     (m) => m.room_id && !leftRoomIds.has(m.room_id as string),
@@ -50,13 +72,13 @@ export async function findLatestVisibleRoom(
     return validMembership.room_id as string;
   }
 
-  // 4. Fallback: query recent memberships and find any active unexpired room
+  // 5. Fallback: query recent memberships and find any active unexpired room
   const { data: recentMemberships } = await supabase
     .from("room_members")
     .select("room_id, joined_at")
     .eq("user_id", userId)
     .order("joined_at", { ascending: false })
-    .limit(10);
+    .limit(15);
 
   const candidates = (recentMemberships ?? [])
     .map((m) => m.room_id as string)
@@ -197,23 +219,59 @@ export async function getQueueState(): Promise<QueueState> {
 export async function leaveRoom(roomId: string): Promise<void> {
   const { supabase, userId } = await requireUser();
 
+  // 1. Guaranteed direct deletion from room_members via user RLS policy
+  await supabase
+    .from("room_members")
+    .delete()
+    .eq("room_id", roomId)
+    .eq("user_id", userId);
+
+  // 2. Also try RPC if available in database
   try {
     await supabase.rpc("leave_room_and_cleanup", {
       p_user_id: userId,
       p_room_id: roomId,
     });
   } catch {
-    await Promise.allSettled([
-      supabase.from("room_leaves").insert({ room_id: roomId, user_id: userId }),
-      supabase
-        .from("room_members")
-        .delete()
-        .eq("room_id", roomId)
-        .eq("user_id", userId),
-    ]);
+    // Ignore RPC failure if migration not yet applied
   }
 
-  // Also ensure not in queue
+  // 3. Try inserting into room_leaves table if it exists
+  try {
+    await supabase.from("room_leaves").insert({
+      room_id: roomId,
+      user_id: userId,
+    });
+  } catch {
+    // Ignore if table does not exist
+  }
+
+  // 4. Save to persistent cookie so server-side always knows this user left this room
+  try {
+    const cookieStore = await cookies();
+    const existing = cookieStore.get("tamahi_left_rooms")?.value;
+    let list: string[] = [];
+    if (existing) {
+      try {
+        const parsed = JSON.parse(existing);
+        if (Array.isArray(parsed)) list = parsed;
+      } catch {
+        // Ignore JSON error
+      }
+    }
+    if (!list.includes(roomId)) {
+      list.push(roomId);
+    }
+    cookieStore.set("tamahi_left_rooms", JSON.stringify(list), {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+      sameSite: "lax",
+    });
+  } catch {
+    // Ignore cookie error
+  }
+
+  // 5. Also ensure not in queue
   await supabase.from("match_queue").delete().eq("user_id", userId);
 }
 

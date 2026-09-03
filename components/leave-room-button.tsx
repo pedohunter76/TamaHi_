@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { leaveRoom } from "@/lib/match/actions";
+import { markRoomDeparted } from "@/lib/match/left-rooms";
+import { useQueueStore } from "@/store/queue-store";
 
 export function LeaveRoomButton({ roomId }: { roomId: string }) {
   const router = useRouter();
@@ -22,17 +24,17 @@ export function LeaveRoomButton({ roomId }: { roomId: string }) {
           return;
         }
         setPending(true);
+        markRoomDeparted(roomId);
+        useQueueStore.getState().resetRoom();
         try {
           await leaveRoom(roomId);
+        } catch {
+          // Ignore error and proceed to lobby
+        } finally {
           if (typeof window !== "undefined") {
             window.location.replace("/lobby");
           } else {
             router.replace("/lobby");
-          }
-        } catch {
-          setPending(false);
-          if (typeof window !== "undefined") {
-            window.location.replace("/lobby");
           }
         }
       }}

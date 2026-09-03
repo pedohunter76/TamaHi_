@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { TopNav } from "@/components/layout/top-nav";
@@ -32,18 +33,45 @@ export default async function ChatRoomPage({
     .maybeSingle();
 
   if (!membership) {
-    const { data: leftRecord } = await supabase
-      .from("room_leaves")
-      .select("left_at")
-      .eq("room_id", roomId)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    let hasLeft = false;
+    let leftAtIso: string | undefined;
 
-    if (leftRecord) {
+    try {
+      const cookieStore = await cookies();
+      const raw = cookieStore.get("tamahi_left_rooms")?.value;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.includes(roomId)) {
+          hasLeft = true;
+        }
+      }
+    } catch {
+      // Ignore cookie error
+    }
+
+    if (!hasLeft) {
+      try {
+        const { data: leftRecord } = await supabase
+          .from("room_leaves")
+          .select("left_at")
+          .eq("room_id", roomId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (leftRecord) {
+          hasLeft = true;
+          leftAtIso = (leftRecord.left_at as string) ?? undefined;
+        }
+      } catch {
+        // Table may not exist
+      }
+    }
+
+    if (hasLeft) {
       return (
         <RoomLeftNotice
           roomId={roomId}
-          leftAtIso={(leftRecord.left_at as string) ?? undefined}
+          leftAtIso={leftAtIso}
         />
       );
     }
