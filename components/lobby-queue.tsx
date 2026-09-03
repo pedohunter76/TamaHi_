@@ -16,7 +16,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { leaveRoom } from "@/lib/match/actions";
 import { BATCH_SIZE } from "@/lib/match/constants";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -35,20 +34,21 @@ export function LobbyQueue() {
   const status = useQueueStore((state) => state.status);
   const count = useQueueStore((state) => state.count);
   const roomId = useQueueStore((state) => state.roomId);
-  const justMatched = useQueueStore((state) => state.justMatched);
   const error = useQueueStore((state) => state.error);
   const join = useQueueStore((state) => state.join);
   const leave = useQueueStore((state) => state.leave);
+  const startEarly = useQueueStore((state) => state.startEarly);
   const refresh = useQueueStore((state) => state.refresh);
   const stats = useQueueStore((state) => state.stats);
 
   const [tipIndex, setTipIndex] = useState(0);
+  const [startingEarly, setStartingEarly] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
 
     const channel = supabase
-      .channel("match-queue")
+      .channel("match-queue-feed")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "match_queue" },
@@ -56,18 +56,28 @@ export function LobbyQueue() {
           void refresh();
         },
       )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "room_members" },
+        () => {
+          void refresh();
+        },
+      )
       .subscribe();
 
     void refresh();
+
+    // Rapid 1.2s polling while waiting in queue, 5s when idle
+    const pollIntervalMs = status === "waiting" || status === "joining" ? 1200 : 5000;
     const interval = setInterval(() => {
       void refresh();
-    }, 4000);
+    }, pollIntervalMs);
 
     return () => {
       clearInterval(interval);
       void supabase.removeChannel(channel);
     };
-  }, [refresh]);
+  }, [refresh, status]);
 
   useEffect(() => {
     if (status === "waiting" || status === "joining") {
@@ -80,7 +90,12 @@ export function LobbyQueue() {
 
   useEffect(() => {
     if (status === "matched" && roomId) {
+      // Direct guaranteed redirection to the chat room
       router.replace(`/chat/${roomId}`);
+      if (typeof window !== "undefined") {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.href = `/chat/${roomId}`;
+      }
     }
   }, [status, roomId, router]);
 
@@ -101,46 +116,36 @@ export function LobbyQueue() {
     );
   }
 
-  // 1. LIVE BATCH ACTIVE SCREEN
-  if (status === "matched" && !justMatched && roomId) {
+  // 1. LIVE BATCH MATCHED TRANSITION SCREEN
+  if (status === "matched" && roomId) {
     return (
       <div className="glass-card mx-auto flex max-w-lg flex-col items-center gap-5 rounded-3xl p-8 text-center shadow-card-md md:p-10 animate-in zoom-in-95">
-        <span className="flex size-18 items-center justify-center rounded-3xl bg-[#006633] text-[#FDB913] shadow-cta">
-          <MessageSquare className="size-9 fill-[#FDB913]" />
-        </span>
+        <div className="relative flex size-20 items-center justify-center rounded-3xl bg-[#006633] text-[#FDB913] shadow-cta">
+          <MessageSquare className="size-10 fill-[#FDB913] animate-bounce" />
+        </div>
         <div className="space-y-1">
-          <span className="inline-flex items-center gap-1 rounded-full border border-[#006633]/20 bg-[#f0faf5] px-3 py-1 text-xs font-black uppercase tracking-wider text-[#006633]">
-            <Sparkles className="size-3 text-[#FDB913]" />
-            Room is Live!
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#006633]/20 bg-[#f0faf5] px-3.5 py-1 text-xs font-black uppercase tracking-wider text-[#006633]">
+            <Sparkles className="size-3.5 text-[#FDB913]" />
+            Match Found! 🎉
           </span>
-          <h2 className="text-2xl font-black text-[#006633] md:text-3xl">Your batch is chatting!</h2>
+          <h2 className="text-2xl font-black text-[#006633] md:text-3xl">Entering Your Room…</h2>
           <p className="text-xs leading-relaxed text-muted-foreground max-w-sm mx-auto">
-            Your 4-person room is active right now for its 24-hour cycle. Jump back in to reply to your batchmates.
+            You and your 3 FEU batchmates are matched. Redirecting you directly to Room #{roomId.slice(0, 6).toUpperCase()}…
           </p>
         </div>
-        <div className="mt-2 flex w-full flex-col gap-2.5">
-          <Button
-            onClick={() => router.push(`/chat/${roomId}`)}
-            className="h-13 w-full rounded-2xl bg-[#006633] text-sm font-extrabold text-[#FDB913] shadow-cta hover:bg-[#004d26]"
-          >
-            Return to Room #{roomId.slice(0, 6).toUpperCase()}
-            <ArrowRight className="ml-1.5 size-4" />
-          </Button>
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                await leaveRoom(roomId);
-                await join();
-              } catch {
-                void refresh();
-              }
-            }}
-            className="text-xs font-semibold text-muted-foreground hover:text-foreground underline-offset-4 hover:underline pt-1"
-          >
-            Leave room and find new batch
-          </button>
-        </div>
+        <Button
+          onClick={() => {
+            router.push(`/chat/${roomId}`);
+            if (typeof window !== "undefined") {
+              // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+              window.location.href = `/chat/${roomId}`;
+            }
+          }}
+          className="h-12 w-full rounded-2xl bg-[#006633] text-sm font-extrabold text-[#FDB913] shadow-cta hover:bg-[#004d26]"
+        >
+          Open Room #{roomId.slice(0, 6).toUpperCase()} Now
+          <ArrowRight className="ml-1.5 size-4" />
+        </Button>
       </div>
     );
   }
@@ -235,6 +240,35 @@ export function LobbyQueue() {
             <span className="size-2 rounded-full bg-[#16a34a] animate-pulse" />
             {filledCount} of {BATCH_SIZE} freshies joined
           </div>
+
+          {/* Start Room Early Option when at least 3 freshies are waiting */}
+          {filledCount >= 3 && !isReady ? (
+            <div className="mt-4 flex w-full flex-col items-center gap-1.5 animate-in fade-in zoom-in-95">
+              <Button
+                type="button"
+                onClick={async () => {
+                  setStartingEarly(true);
+                  try {
+                    await startEarly();
+                  } finally {
+                    setStartingEarly(false);
+                  }
+                }}
+                disabled={startingEarly}
+                className="h-12 w-full rounded-2xl bg-gradient-to-r from-[#006633] via-[#004d26] to-[#b45309] text-xs font-black text-[#FDB913] shadow-cta transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Sparkles className="size-4 text-[#FDB913]" />
+                <span>
+                  {startingEarly
+                    ? "Opening 3-person batch room…"
+                    : `Start Chat with ${filledCount} Freshies Now ⚡`}
+                </span>
+              </Button>
+              <p className="text-[10px] font-semibold text-muted-foreground">
+                ✨ 3 freshies ready! You can start now or wait for the 4th freshie.
+              </p>
+            </div>
+          ) : null}
 
           {/* Rotating Tip Banner */}
           {!isReady ? (

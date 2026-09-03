@@ -16,8 +16,18 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TamaHi!",
-  description: "Randomized group chats for FEU freshies.",
+  title: "TamaHi! — FEU Group Chat",
+  description: "Ephemeral randomized group chats for FEU freshies.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/apple-icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: ["/icon.svg"],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

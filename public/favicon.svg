@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="feuGreen" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00753A"/>
+      <stop offset="60%" stop-color="#006633"/>
+      <stop offset="100%" stop-color="#004522"/>
+    </linearGradient>
+    <linearGradient id="feuGold" x1="100" y1="50" x2="412" y2="440" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFE066"/>
+      <stop offset="35%" stop-color="#FDB913"/>
+      <stop offset="100%" stop-color="#E59E00"/>
+    </linearGradient>
+    <linearGradient id="glassGloss" x1="0" y1="0" x2="0" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- FEU Forest Green Squircle Canvas -->
+  <rect width="512" height="512" rx="116" fill="url(#feuGreen)"/>
+  <rect width="512" height="256" rx="116" fill="url(#glassGloss)"/>
+  <rect x="6" y="6" width="500" height="500" rx="110" fill="none" stroke="#FDB913" stroke-width="2.5" stroke-opacity="0.25"/>
+
+  <!-- Tamaraw Horn Left -->
+  <path d="M 172 176 C 130 142 85 82 110 46 C 132 82 170 132 216 158 Z" fill="url(#feuGold)"/>
+  <!-- Tamaraw Horn Right -->
+  <path d="M 340 176 C 382 142 427 82 402 46 C 380 82 342 132 296 158 Z" fill="url(#feuGold)"/>
+  
+  <!-- Speech Bubble Main Body -->
+  <path d="M 108 160 C 108 128 134 102 166 102 L 346 102 C 378 102 404 128 404 160 L 404 316 C 404 348 378 374 346 374 L 210 374 L 136 438 C 124 448 108 439 108 424 L 108 160 Z" fill="url(#feuGold)"/>
+
+  <!-- High-Contrast Brand Glyph: 'Hi!' Cutout in Deep FEU Green -->
+  <path d="M 174 195 L 200 195 L 200 236 L 244 236 L 244 195 L 270 195 L 270 305 L 244 305 L 244 260 L 200 260 L 200 305 L 174 305 Z" fill="#004D25"/>
+  <circle cx="302" cy="204" r="13" fill="#004D25"/>
+  <rect x="290" y="228" width="24" height="77" rx="8" fill="#004D25"/>
+  <path d="M 344 194 C 344 189 348 185 354 185 L 360 185 C 366 185 370 189 370 194 L 366 268 C 366 272 362 276 357 276 C 352 276 348 272 348 268 Z" fill="#004D25"/>
+  <circle cx="357" cy="297" r="11" fill="#004D25"/>
+
+  <!-- Sparkle Star Accent in Pure White -->
+  <path d="M 408 105 L 413 118 L 426 123 L 413 128 L 408 141 L 403 128 L 390 123 L 403 118 Z" fill="#FFFFFF" opacity="0.95"/>
+</svg>

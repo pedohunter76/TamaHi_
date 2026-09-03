@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowLeft, BadgeCheck, Check, Clock, Hand, ShieldCheck, Sparkles, User, Users } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Check, Clock, ShieldCheck, Sparkles, User, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { ProfileForm } from "@/components/profile-form";
+import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { VibePicker } from "@/components/vibe-picker";
 import { completeOnboarding } from "@/lib/quiz/actions";
@@ -69,15 +70,7 @@ export default function LoginPage() {
         <aside className="glass-card hidden flex-col justify-between rounded-3xl p-8 md:flex shadow-card-md">
           <div className="flex flex-col gap-5">
             <div className="flex items-center gap-2.5">
-              <span className="flex size-9 items-center justify-center rounded-xl bg-[#006633] text-[#FDB913] shadow-xs">
-                <Hand className="size-5" />
-              </span>
-              <span className="text-xl font-black text-[#006633]">
-                TamaHi<span className="text-[#FDB913]">!</span>
-              </span>
-              <span className="rounded-full bg-[#FDB913] px-2 py-0.5 text-[9px] font-black uppercase text-[#006633]">
-                FEU
-              </span>
+              <BrandLogo size={36} />
             </div>
 
             <div className="space-y-1">

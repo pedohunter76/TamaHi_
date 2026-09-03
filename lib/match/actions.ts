@@ -6,29 +6,62 @@ import { BATCH_SIZE } from "@/lib/match/constants";
 import { pickBatch, type QueueEntry } from "@/lib/match/group";
 import { requireUser } from "@/lib/supabase/require-user";
 
-async function findLatestVisibleRoom(
+export async function findLatestVisibleRoom(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<string | null> {
-  const { data: membership } = await supabase
-    .from("room_members")
-    .select("room_id")
-    .eq("user_id", userId)
-    .order("joined_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // 1. Try security-definer RPC if available
+  try {
+    const { data: rpcRoomId } = await supabase.rpc("get_user_active_room", {
+      p_user_id: userId,
+    });
 
-  if (!membership?.room_id) {
-    return null;
+    if (rpcRoomId) {
+      return rpcRoomId as string;
+    }
+  } catch {
+    // Fall back to direct query
   }
 
-  const { data: room } = await supabase
-    .from("rooms")
-    .select("id")
-    .eq("id", membership.room_id)
-    .maybeSingle();
+  const nowIso = new Date().toISOString();
 
-  return room?.id ?? null;
+  // 2. Query room_members joining active rooms
+  const { data: memberships } = await supabase
+    .from("room_members")
+    .select("room_id, joined_at, rooms!inner(id, expires_at)")
+    .eq("user_id", userId)
+    .gt("rooms.expires_at", nowIso)
+    .order("joined_at", { ascending: false })
+    .limit(1);
+
+  if (memberships && memberships.length > 0 && memberships[0].room_id) {
+    return memberships[0].room_id as string;
+  }
+
+  // 3. Fallback: query recent memberships and find any active unexpired room
+  const { data: recentMemberships } = await supabase
+    .from("room_members")
+    .select("room_id, joined_at")
+    .eq("user_id", userId)
+    .order("joined_at", { ascending: false })
+    .limit(5);
+
+  if (recentMemberships && recentMemberships.length > 0) {
+    const roomIds = recentMemberships.map((m) => m.room_id as string);
+    const { data: activeRooms } = await supabase
+      .from("rooms")
+      .select("id, expires_at")
+      .in("id", roomIds)
+      .gt("expires_at", nowIso)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (activeRooms && activeRooms.length > 0) {
+      return activeRooms[0].id as string;
+    }
+  }
+
+  return null;
 }
 
 export async function joinQueue(): Promise<void> {
@@ -160,8 +193,16 @@ export async function leaveRoom(roomId: string): Promise<void> {
   }
 }
 
-export async function tryMatch(): Promise<string | null> {
+export async function tryMatch(
+  targetBatchSize?: number,
+): Promise<string | null> {
   const { supabase, userId } = await requireUser();
+
+  // 1. If user is already seated in an active room, return immediately
+  const alreadySeated = await findLatestVisibleRoom(supabase, userId);
+  if (alreadySeated) {
+    return alreadySeated;
+  }
 
   await supabase.rpc("purge_stale_queue");
 
@@ -174,8 +215,11 @@ export async function tryMatch(): Promise<string | null> {
     throw new Error(error.message);
   }
 
-  if (!queueRows || queueRows.length < BATCH_SIZE) {
-    return null;
+  const neededSize = targetBatchSize ?? BATCH_SIZE;
+
+  if (!queueRows || queueRows.length < neededSize) {
+    // Check if seated while waiting or during another peer's batch creation
+    return await findLatestVisibleRoom(supabase, userId);
   }
 
   const ids = queueRows.map((row) => row.user_id as string);
@@ -195,10 +239,10 @@ export async function tryMatch(): Promise<string | null> {
     vibes: vibesById.get(row.user_id as string) ?? null,
   }));
 
-  const group = pickBatch(entries, BATCH_SIZE);
+  const group = pickBatch(entries, neededSize);
 
   if (!group || !group.includes(userId)) {
-    return null;
+    return await findLatestVisibleRoom(supabase, userId);
   }
 
   const { data: roomId, error: rpcError } = await supabase.rpc(
@@ -213,4 +257,8 @@ export async function tryMatch(): Promise<string | null> {
   }
 
   return (roomId as string | null) ?? null;
+}
+
+export async function startEarlyMatch(): Promise<string | null> {
+  return await tryMatch(3);
 }

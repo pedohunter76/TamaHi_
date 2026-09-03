@@ -267,14 +267,14 @@ declare
 begin
   perform pg_advisory_xact_lock(hashtext('match_queue'));
 
-  if array_length(p_members, 1) <> 4 then
-    raise exception 'batch size must be exactly 4';
+  if array_length(p_members, 1) < 3 or array_length(p_members, 1) > 4 then
+    raise exception 'batch size must be 3 or 4';
   end if;
 
   if (
     select count(*) from public.match_queue
     where user_id = any(p_members)
-  ) <> 4 then
+  ) <> array_length(p_members, 1) then
     raise exception 'batch members are no longer all queued';
   end if;
 
@@ -301,6 +301,22 @@ as $$
   where last_seen_at < now() - interval '3 minutes';
 $$;
 
+create or replace function public.get_user_active_room(p_user_id uuid)
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select rm.room_id
+  from public.room_members rm
+  join public.rooms r on r.id = rm.room_id
+  where rm.user_id = p_user_id
+    and r.expires_at > now()
+  order by rm.joined_at desc
+  limit 1;
+$$;
+
 -- ═══════════════════════════════════════════════════════════════
 -- REALTIME PUBLICATION SETUP (Safe / Non-duplicate)
 -- ═══════════════════════════════════════════════════════════════
@@ -318,5 +334,19 @@ begin
     where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'message_reactions'
   ) then
     alter publication supabase_realtime add table public.message_reactions;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'match_queue'
+  ) then
+    alter publication supabase_realtime add table public.match_queue;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'room_members'
+  ) then
+    alter publication supabase_realtime add table public.room_members;
   end if;
 end $$;

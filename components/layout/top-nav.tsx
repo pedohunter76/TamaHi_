@@ -1,10 +1,11 @@
 "use client";
 
-import { Bell, Compass, Home, MessageSquare, User, Users, Volume2, VolumeX } from "lucide-react";
+import { Bell, Compass, Home, User, Users, Volume2, VolumeX } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
+import { TamaHiIcon } from "@/components/brand-logo";
 import { isSoundMuted, playMessagePop, setSoundMuted } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 
@@ -32,9 +33,7 @@ export function TopNav() {
     <header className="fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between border-b-[3px] border-[#FDB913] bg-[#006633] px-4 shadow-nav md:px-6">
       {/* Brand / Logo */}
       <Link href="/lobby" className="flex items-center gap-2.5 transition-opacity hover:opacity-95">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#FDB913] text-[#006633] shadow-xs">
-          <MessageSquare className="size-4.5 fill-[#006633]" />
-        </span>
+        <TamaHiIcon size={32} className="size-8 rounded-lg shadow-xs" />
         <div className="flex items-center gap-1.5">
           <span className="text-xl font-extrabold tracking-tight text-[#FDB913]">
             TamaHi<span className="text-white">!</span>
