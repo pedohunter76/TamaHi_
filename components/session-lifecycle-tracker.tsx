@@ -5,7 +5,7 @@ import { useEffect } from "react";
 /**
  * Automatically cleans up user queue state (ghost rows in match_queue)
  * when a user closes the browser tab while waiting in queue,
- * while preserving active 24-hour room memberships.
+ * while rooms self-destruct after 1 hour.
  */
 export function SessionLifecycleTracker() {
   useEffect(() => {

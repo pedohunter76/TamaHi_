@@ -30,11 +30,11 @@ alter table public.profiles add column if not exists quiz_passed_at timestamptz;
 alter table public.profiles add column if not exists vibes smallint[];
 alter table public.profiles add column if not exists created_at timestamptz not null default now();
 
--- 2. Rooms Table (24-hour ephemeral groups)
+-- 2. Rooms Table (1-hour ephemeral groups)
 create table if not exists public.rooms (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
-  expires_at timestamptz not null default now() + interval '24 hours',
+  expires_at timestamptz not null default now() + interval '1 hour',
   is_active boolean not null default true
 );
 
@@ -178,6 +178,15 @@ drop policy if exists "Active rooms are viewable while not expired" on public.ro
 create policy "Active rooms are viewable while not expired"
   on public.rooms for select to authenticated using (expires_at > now());
 
+drop policy if exists "Authenticated users delete empty or expired rooms" on public.rooms;
+create policy "Authenticated users delete empty or expired rooms"
+  on public.rooms for delete to authenticated
+  using (
+    expires_at <= now() or not exists (
+      select 1 from public.room_members rm where rm.room_id = id
+    )
+  );
+
 -- Room members policies
 drop policy if exists "Members view co-members of their rooms" on public.room_members;
 create policy "Members view co-members of their rooms"
@@ -297,7 +306,9 @@ begin
     raise exception 'batch members are no longer all queued';
   end if;
 
-  insert into public.rooms default values
+  -- Create room explicitly with 1-hour expiration
+  insert into public.rooms (expires_at)
+  values (now() + interval '1 hour')
   returning id into v_room_id;
 
   insert into public.room_members (room_id, user_id)
@@ -406,6 +417,24 @@ begin
   if v_remaining_members = 0 then
     delete from public.rooms where id = p_room_id;
   end if;
+end;
+$$;
+
+create or replace function public.cleanup_empty_and_expired_rooms()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_deleted integer;
+begin
+  delete from public.rooms r
+  where r.expires_at <= now()
+     or not exists (select 1 from public.room_members rm where rm.room_id = r.id);
+
+  get diagnostics v_deleted = row_count;
+  return v_deleted;
 end;
 $$;
 

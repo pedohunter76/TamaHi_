@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # AGENTS.md
 
-**TamaHi!** (formerly "FEU Group Chat") — ephemeral randomized group chats for FEU students (`@feu.edu.ph` only). Freshies get matched into 4-person rooms by vibe similarity; rooms self-destruct after 24 hours.
+**TamaHi!** (formerly "FEU Group Chat") — ephemeral randomized group chats for FEU students (`@feu.edu.ph` only). Freshies get matched into 4-person rooms by vibe similarity; rooms self-destruct after 1 hour.
 
 **Stack:** Next.js 16 (App Router, Turbopack) · TypeScript · Tailwind CSS v4 + shadcn/ui (radix primitives, nova style, neutral/zinc palette) · lucide-react icons · Supabase (Postgres/Auth/Realtime) on the **free tier** · Zustand (planned).
 
@@ -47,7 +47,7 @@ All verified against `package.json`. Use `npm.cmd`/`npx.cmd` in PowerShell — e
 
 - Entry gate is a two-step Profile Maker, freshies-only and honor-system: free-typed student number (no format verification) + nickname/age/institute/course saved to `profiles` (visible to other authenticated users). Institutes/courses come from the official FEU catalog (`lib/profile/constants.ts`); the course select is locked to the chosen institute's offerings. Then one-time vibe setup (`lib/vibes/questions.ts`, 5 campus-life questions in Taglish, stored in `profiles.vibes`). Sessions are anonymous Supabase guests; there is no email auth anywhere. Spec: `docs/superpowers/specs/2026-08-22-quiz-auth-design.md` (amended: knowledge quiz removed).
 - Matchmaking: batches of 4 seeded by the longest-waiting queuer, seats filled by vibe similarity out of 5 answers (`lib/vibes/questions.ts`, campus-life questions in Taglish, stored in `profiles.vibes`). Seating is atomic via the `open_batch_room()` security-definer RPC — never seat batches client-side. Queue state lives in the Zustand store (`store/queue-store.ts`). Ghost rows: waiting lobbies heartbeat `joined_at` on every poll and any entry idle >3 minutes is purged by `purge_stale_queue()`; closing the tab also fires a `sendBeacon` to `/api/queue/leave`. Spec: `docs/superpowers/specs/2026-08-22-matchmaking-vibes-design.md`.
-- Chat room expiry is **virtual deletion**: no cron jobs or delete scripts (paid compute). Enforce with RLS hiding rows where `created_at + interval '24 hours' < now()`.
+- Chat room expiry is **virtual deletion**: no cron jobs or delete scripts (paid compute). Enforce with RLS hiding rows where `created_at + interval '1 hour' < now()`.
 
 ## Scaffold quirk
 

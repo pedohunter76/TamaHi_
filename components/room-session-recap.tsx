@@ -27,7 +27,7 @@ export function RoomSessionRecap({
           Batch Session Complete! 🎉
         </h2>
         <p className="max-w-md mx-auto text-xs leading-relaxed text-muted-foreground">
-          This 24-hour room has safely concluded. All messages have self-destructed,
+          This 1-hour room has safely concluded. All messages have self-destructed,
           but your connections are saved in your Tamaraw circle!
         </p>
       </div>

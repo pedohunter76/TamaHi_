@@ -111,7 +111,7 @@ export function SocialHandlesForm() {
           <span>Live Batch Card Preview</span>
         </div>
         <p className="text-[11px] text-muted-foreground">
-          How batchmates in your 24-hour room will see your contact details when you share:
+          How batchmates in your 1-hour room will see your contact details when you share:
         </p>
 
         {hasAnySocial ? (

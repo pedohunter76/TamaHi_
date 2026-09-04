@@ -201,15 +201,18 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
           return;
         }
 
-        set({
-          status: "matched",
-          roomId: state.roomId,
-          stats: state.stats,
-          queued: false,
-          justMatched: true,
-        });
-        navigateToRoom(state.roomId);
-        return;
+        // Only auto-direct if user was actively waiting in the queue
+        if (get().queued || get().status === "waiting" || get().status === "joining") {
+          set({
+            status: "matched",
+            roomId: state.roomId,
+            stats: state.stats,
+            queued: false,
+            justMatched: true,
+          });
+          navigateToRoom(state.roomId);
+          return;
+        }
       }
 
       if (state.queued) {

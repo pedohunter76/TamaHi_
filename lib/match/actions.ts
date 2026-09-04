@@ -226,6 +226,30 @@ export async function leaveRoom(roomId: string): Promise<void> {
     .eq("room_id", roomId)
     .eq("user_id", userId);
 
+  // Check remaining members in the room; if 0, delete the room row
+  try {
+    const { count } = await supabase
+      .from("room_members")
+      .select("*", { count: "exact", head: true })
+      .eq("room_id", roomId);
+
+    if (count === 0) {
+      await supabase.from("rooms").delete().eq("id", roomId);
+    }
+  } catch {
+    // Ignore error if RLS restricts
+  }
+
+  // Also clean up any expired rooms
+  try {
+    await supabase
+      .from("rooms")
+      .delete()
+      .lte("expires_at", new Date().toISOString());
+  } catch {
+    // Ignore if policy restricts
+  }
+
   // 2. Also try RPC if available in database
   try {
     await supabase.rpc("leave_room_and_cleanup", {

@@ -133,7 +133,7 @@ export function MessageList({
         <div className="my-1 flex items-center justify-center">
           <div className="inline-flex items-center gap-2 rounded-2xl border border-[#006633]/20 bg-gradient-to-r from-[#f0faf5] via-white to-[#fef9e8] px-4 py-1.5 text-xs font-bold text-[#006633] shadow-2xs">
             <Sparkles className="size-3.5 text-[#FDB913]" />
-            <span>🎉 24-Hour Tamaraw Batch Room Live</span>
+            <span>🎉 1-Hour Tamaraw Batch Room Live</span>
           </div>
         </div>
 

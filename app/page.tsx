@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 
-import { findLatestVisibleRoom } from "@/lib/match/actions";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function Home() {
@@ -17,10 +16,6 @@ export default async function Home() {
       .maybeSingle();
 
     if (profile?.quiz_passed_at && profile?.nickname) {
-      const activeRoomId = await findLatestVisibleRoom(supabase, user.id);
-      if (activeRoomId) {
-        redirect(`/chat/${activeRoomId}`);
-      }
       redirect("/lobby");
     }
   }

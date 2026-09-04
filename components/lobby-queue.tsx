@@ -35,12 +35,13 @@ export function LobbyQueue() {
   const status = useQueueStore((state) => state.status);
   const count = useQueueStore((state) => state.count);
   const roomId = useQueueStore((state) => state.roomId);
+  const stats = useQueueStore((state) => state.stats);
   const error = useQueueStore((state) => state.error);
+  const justMatched = useQueueStore((state) => state.justMatched);
   const join = useQueueStore((state) => state.join);
   const leave = useQueueStore((state) => state.leave);
   const startEarly = useQueueStore((state) => state.startEarly);
   const refresh = useQueueStore((state) => state.refresh);
-  const stats = useQueueStore((state) => state.stats);
 
   const [tipIndex, setTipIndex] = useState(0);
   const [startingEarly, setStartingEarly] = useState(false);
@@ -104,7 +105,7 @@ export function LobbyQueue() {
   }, [status, count, refresh]);
 
   useEffect(() => {
-    if (status === "matched" && roomId) {
+    if (status === "matched" && roomId && justMatched) {
       if (isRoomDeparted(roomId)) {
         useQueueStore.getState().resetRoom();
         return;
@@ -115,7 +116,7 @@ export function LobbyQueue() {
         window.location.replace(`/chat/${roomId}`);
       }
     }
-  }, [status, roomId, router]);
+  }, [status, roomId, justMatched, router]);
 
   if (error) {
     return (
@@ -211,7 +212,7 @@ export function LobbyQueue() {
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
             {isReady
-              ? "All 4 seats filled! Launching your 24-hour Tamaraw room now…"
+              ? "All 4 seats filled! Launching your 1-hour Tamaraw room now…"
               : "Matching you with 3 other FEU freshies based on campus vibes."}
           </p>
 
@@ -341,7 +342,7 @@ export function LobbyQueue() {
               Find Your 4-Person Tamaraw Batch Room
             </h2>
             <p className="text-xs sm:text-sm leading-relaxed text-muted-foreground">
-              Instant 24-hour group chats with fellow FEU freshies matched by your campus lifestyle, study habits, and favorite spots.
+              Instant 1-hour group chats with fellow FEU freshies matched by your campus lifestyle, study habits, and favorite spots.
             </p>
 
             <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -354,7 +355,7 @@ export function LobbyQueue() {
               </Button>
 
               <span className="text-xs font-semibold text-muted-foreground">
-                Rooms self-destruct in 24h
+                Rooms self-destruct in 1h
               </span>
             </div>
           </div>
@@ -394,7 +395,7 @@ export function LobbyQueue() {
         <div className="glass-card flex flex-col items-center rounded-2xl p-4 text-center shadow-2xs hover:border-[#006633]/30 transition-all">
           <span className="text-2xl">⏳</span>
           <span className="mt-1 text-xl font-black text-[#006633] tabular-nums">
-            24h
+            1h
           </span>
           <span className="text-[11px] font-medium text-muted-foreground">Room Lifespan</span>
         </div>

@@ -177,7 +177,7 @@ export function MessageInput({
             disabled={disabled}
             placeholder={
               disabled
-                ? "This 24-hour room has ended."
+                ? "This 1-hour room has ended."
                 : "Say hi to your fellow Tamaraw freshies..."
             }
             maxLength={MAX_CONTENT_LENGTH}

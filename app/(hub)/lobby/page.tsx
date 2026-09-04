@@ -55,7 +55,7 @@ export default async function LobbyPage() {
         </h1>
         <p className="max-w-2xl text-sm md:text-base leading-relaxed text-muted-foreground">
           Welcome back, <span className="font-bold text-foreground">{nickname}</span>{course ? ` (${course})` : ""}!
-          Groups of 4 freshies with matching campus vibes get seated into 24-hour batch rooms automatically.
+          Groups of 4 freshies with matching campus vibes get seated into 1-hour batch rooms automatically.
         </p>
       </section>
 

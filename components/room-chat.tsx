@@ -301,6 +301,32 @@ export function RoomChat({
     };
   }, []);
 
+  // When user closes the tab, send beacon to leave the room immediately
+  useEffect(() => {
+    function handleTabClose() {
+      markRoomDeparted(roomId);
+      useQueueStore.getState().resetRoom();
+
+      const payload = JSON.stringify({ roomId });
+      if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+        navigator.sendBeacon("/api/room/leave", payload);
+      } else {
+        void fetch("/api/room/leave", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          keepalive: true,
+        }).catch(() => {});
+      }
+    }
+
+    window.addEventListener("pagehide", handleTabClose);
+
+    return () => {
+      window.removeEventListener("pagehide", handleTabClose);
+    };
+  }, [roomId]);
+
   function handleSelfTyping() {
     const now = Date.now();
 
@@ -377,7 +403,7 @@ export function RoomChat({
 
             <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-[#006633]/20 bg-[#f0faf5] px-2.5 py-1 text-[11px] font-extrabold text-[#006633]">
               <Sparkles className="size-3 text-[#FDB913]" />
-              <span>24H Tamaraw Batch Room</span>
+              <span>1H Tamaraw Batch Room</span>
             </div>
           </div>
 
